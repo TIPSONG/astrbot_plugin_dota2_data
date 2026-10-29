@@ -11,6 +11,9 @@ DEFAULTS = {
     "daily_request_limit": 1000,
     "timezone": "Asia/Hong_Kong",
     "opendota_api_key": "",
+    "stratz_api_key": "",
+    "data_source_priority": "opendota",
+    "fallback_enabled": True,
 }
 RANGES = {
     "timeout_seconds": (3, 60), "cache_ttl_seconds": (30, 86400),
@@ -28,6 +31,10 @@ def validate(values: dict) -> dict:
     result = {**DEFAULTS, **values}
     if type(result["enabled"]) is not bool:
         raise ValueError("enabled 必须是布尔值。")
+    if type(result["fallback_enabled"]) is not bool:
+        raise ValueError("fallback_enabled 必须是布尔值。")
+    if result["data_source_priority"] not in ("opendota", "stratz"):
+        raise ValueError("优先数据源必须是 opendota 或 stratz。")
     for key, (low, high) in RANGES.items():
         value = result[key]
         if type(value) is not int or not low <= value <= high:
@@ -41,9 +48,10 @@ def validate(values: dict) -> dict:
         ZoneInfo(zone)
     except (ZoneInfoNotFoundError, ValueError):
         raise ValueError("未知时区；Windows 环境需具备 tzdata 时区数据。") from None
-    key = result["opendota_api_key"]
-    if not isinstance(key, str) or len(key) > 512 or any(ord(c) < 32 for c in key):
-        raise ValueError("OpenDota Key 格式不正确。")
-    result["opendota_api_key"] = key.strip()
+    for name in ("opendota_api_key", "stratz_api_key"):
+        key = result[name]
+        if not isinstance(key, str) or len(key) > 4096 or any(ord(c) < 32 for c in key):
+            raise ValueError(f"{name} 格式不正确。")
+        result[name] = key.strip()
     return result
 

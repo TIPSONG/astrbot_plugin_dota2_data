@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .api import OpenDota
+from .router import DataAPI
 from .errors import DataError, NeedsInput
 from .storage import Store, utc_now
 from .validation import (
@@ -49,6 +49,8 @@ def text(value, limit=100):
 
 
 def won(row: dict):
+    if isinstance(row.get("_player_win"), bool):
+        return row["_player_win"]
     slot, radiant = number(row.get("player_slot")), row.get("radiant_win")
     if slot is None or not isinstance(radiant, bool):
         return None
@@ -82,7 +84,7 @@ class DataService:
     def __init__(self, data_dir: Path, settings: dict):
         self.settings = checked_settings(settings)
         self.store = Store(Path(data_dir))
-        self.api = OpenDota(self.store, self.settings)
+        self.api = DataAPI(self.store, self.settings)
         # Serialize bounded queries; never launch unattended refresh jobs.
         self._query_lock = asyncio.Lock()
         self._closed = False
@@ -97,7 +99,10 @@ class DataService:
     def status(self) -> dict:
         day = datetime.now(ZoneInfo(self.settings["timezone"])).date().isoformat()
         return {**self.store.status(day), "enabled": self.settings["enabled"],
-                "source": "OpenDota", "timezone": self.settings["timezone"],
+                "source": self.settings["data_source_priority"], "timezone": self.settings["timezone"],
+                "data_source_priority": self.settings["data_source_priority"],
+                "fallback_enabled": self.settings["fallback_enabled"],
+                "stratz_configured": bool(self.settings["stratz_api_key"]),
                 "requests_per_minute": self.settings["requests_per_minute"],
                 "daily_request_limit": self.settings["daily_request_limit"],
                 "network_status": "not_probed", "active_query": self._query_lock.locked()}
@@ -162,6 +167,7 @@ class DataService:
 
     async def query(self, action: str, params: dict, scope: str, user_id: str) -> dict:
         start = time.monotonic()
+        trace = []
         result = {"status": "error", "data": None, "meta": {}}
         try:
             if not isinstance(action, str) or action not in ACTIONS:
@@ -178,6 +184,8 @@ class DataService:
             if self._query_lock.locked():
                 raise DataError("busy", "已有数据查询正在执行，请等它返回后再查。")
             async with self._query_lock:
+                self.api.begin_query()
+                trace = self.api.trace
                 result = await asyncio.wait_for(self._dispatch(action, params, scope, user_id), timeout=45)
         except NeedsInput as exc:
             result = {"status": "needs_input", "code": exc.code, "message": exc.message, "data": None, "meta": {}}
@@ -191,8 +199,18 @@ class DataService:
             # Keep private values and request URLs out of log records and tool results.
             log.warning("Dota data query failed: %s", type(exc).__name__)
             result = {"status": "error", "code": "internal_error", "message": "查询内部错误，本次没有可用结果。", "data": None, "meta": {}}
-        result.setdefault("meta", {}).update({"source": "OpenDota", "queried_at": utc_now(),
-                                               "timezone": self.settings["timezone"], "data_only": True})
+        successful = [entry for entry in trace if entry["status"] == "ok"]
+        data_sources = list(dict.fromkeys(entry["source"] for entry in successful if entry["role"] == "data"))
+        result.setdefault("meta", {}).update({
+            "source": " + ".join(data_sources) if data_sources else None,
+            "sources": list(dict.fromkeys(entry["source"] for entry in successful)),
+            "preferred_source": self.settings["data_source_priority"],
+            "fallbacks": [entry["fallback"] for entry in trace if "fallback" in entry],
+            "source_requests": trace,
+            "queried_at": utc_now(), "timezone": self.settings["timezone"], "data_only": True,
+        })
+        if any(entry["role"] == "dictionary" and entry["status"] != "ok" for entry in trace):
+            result["meta"].setdefault("warnings", []).append("英雄字典暂不可用，部分英雄仅显示 ID；不影响已取得的对局数值。")
         try:
             self.store.record_query(action if isinstance(action, str) and action in ACTIONS else "invalid", result["status"], int((time.monotonic() - start) * 1000))
         except sqlite3.Error:
@@ -211,7 +229,11 @@ class DataService:
         return await self._meta(params)
 
     async def _heroes(self) -> tuple[dict[int, dict], dict]:
-        rows, stamp = await self.api.get("/heroes", ttl=86400)
+        try:
+            rows, stamp = await self.api.get("/heroes", ttl=86400)
+        except DataError as exc:
+            # Optional labels must not prevent a STRATZ match query when OpenDota is down.
+            return {}, {"available": False, "code": exc.code}
         if not isinstance(rows, list):
             raise DataError("invalid_response", "英雄字典格式异常。")
         return {row["id"]: row for row in rows if isinstance(row, dict) and isinstance(row.get("id"), int)}, stamp
@@ -223,7 +245,7 @@ class DataService:
         candidate = HERO_ALIASES.get(name)
         if name.isdecimal():
             candidate = int(name)
-        if candidate in catalog:
+        if candidate in catalog or (not catalog and candidate is not None and 0 < candidate < 10000):
             return candidate
         hits = []
         for hid, row in catalog.items():
@@ -306,20 +328,27 @@ class DataService:
         rows.sort(key=lambda row: (row.get("start_time", 0), row["match_id"]), reverse=True)
         complete = reason != "scan_limit" and missing_times == 0
         return rows, {"scanned_rows": scanned, "matched_rows": len(rows), "scan_limit": self.settings["scan_limit"],
+                      "source": stamps[0]["source"] if stamps else None,
                       "stop_reason": reason, "available_window_complete": complete,
                       "missing_time_rows": missing_times, "pages": len(stamps),
                       "cached_pages": sum(stamp["cached"] for stamp in stamps),
                       "oldest_fetch_at": min((stamp["fetched_at"] for stamp in stamps), default=None),
                       "newest_fetch_at": max((stamp["fetched_at"] for stamp in stamps), default=None)}
 
-    def _row(self, row: dict, heroes: dict[int, dict]) -> dict:
+    def _row(self, row: dict, heroes: dict[int, dict], source: str = "OpenDota") -> dict:
         fields = ("match_id", "hero_id", "start_time", "duration", "game_mode", "lobby_type", "player_slot",
                   "kills", "deaths", "assists", "gold_per_min", "xp_per_min", "last_hits", "hero_damage",
                   "tower_damage", "hero_healing", "lane_role")
         result = {field: number(row.get(field)) for field in fields}
         result.update({"hero_name": text(heroes.get(row.get("hero_id"), {}).get("localized_name")), "won": won(row)})
+        if source == "STRATZ":
+            # Internal side markers are not OpenDota player-slot IDs.
+            result["player_slot"] = None
+            result["is_radiant"] = row.get("_is_radiant")
+            result["stratz_player_slot"] = number(row.get("stratz_player_slot"))
         if result["match_id"]:
-            result["source_url"] = f"https://www.opendota.com/matches/{int(result['match_id'])}"
+            host = "stratz.com" if source == "STRATZ" else "www.opendota.com"
+            result["source_url"] = f"https://{host}/matches/{int(result['match_id'])}"
         return result
 
     async def _profile(self, params: dict, scope: str, user_id: str) -> dict:
@@ -332,7 +361,7 @@ class DataService:
             "account_id": aid, "personaname": text(profile.get("personaname")),
             "rank_tier": number(row.get("rank_tier")), "leaderboard_rank": number(row.get("leaderboard_rank")),
             "last_match_time": text(row.get("last_match_time")),
-            "source_url": f"https://www.opendota.com/players/{aid}"},
+            "source_url": f"https://{'stratz.com' if stamp['source'] == 'STRATZ' else 'www.opendota.com'}/players/{aid}"},
             "meta": {**stamp, "limitations": ["段位字段是来源记录，不是实时 MMR；公开资料缺失不能证明账号不存在。"]}}
 
     async def _player_matches(self, action: str, params: dict, scope: str, user_id: str) -> dict:
@@ -353,7 +382,7 @@ class DataService:
                                **summarize(group)} for hid, group in grouped.items()]
             data["heroes"].sort(key=lambda row: row["matches"], reverse=True)
         else:
-            data["matches"] = [self._row(row, heroes) for row in rows]
+            data["matches"] = [self._row(row, heroes, coverage["source"]) for row in rows]
         return {"status": "ok" if rows else "empty", "data": data,
                 "meta": {"filters": filters, "coverage": coverage,
                          "limitations": ["统计仅覆盖返回的最近符合条件的对局；数量上限之外的对局未计入。",
@@ -374,7 +403,7 @@ class DataService:
             enriched = {**raw, "match_id": mid, "start_time": row.get("start_time"),
                         "duration": row.get("duration"), "radiant_win": row.get("radiant_win"),
                         "game_mode": row.get("game_mode"), "lobby_type": row.get("lobby_type")}
-            player = self._row(enriched, heroes)
+            player = self._row(enriched, heroes, stamp["source"])
             player["account_id"] = number(raw.get("account_id"))
             player["personaname"] = text(raw.get("personaname"))
             player["items"] = [number(raw.get(f"item_{n}")) for n in range(6)]
@@ -385,13 +414,14 @@ class DataService:
         xp = row.get("radiant_xp_adv")
         gold = [number(value) for value in gold[:180]] if isinstance(gold, list) else []
         xp = [number(value) for value in xp[:180]] if isinstance(xp, list) else []
-        parsed = isinstance(row.get("version"), int) and row["version"] > 0
+        parsed = row.get("_parsed") if stamp["source"] == "STRATZ" else isinstance(row.get("version"), int) and row["version"] > 0
         return {"status": "ok", "data": {"match_id": mid, "start_time": number(row.get("start_time")),
                 "duration_seconds": number(row.get("duration")), "radiant_win": row.get("radiant_win") if isinstance(row.get("radiant_win"), bool) else None,
                 "radiant_score": number(row.get("radiant_score")), "dire_score": number(row.get("dire_score")),
-                "patch_id": number(row.get("patch")), "players": players,
+                "patch_id": number(row.get("patch")),
+                "stratz_game_version_id": number(row.get("stratz_game_version_id")), "players": players,
                 "radiant_gold_advantage_by_minute": gold, "radiant_xp_advantage_by_minute": xp,
-                "source_url": f"https://www.opendota.com/matches/{mid}"},
+                "source_url": f"https://{'stratz.com' if stamp['source'] == 'STRATZ' else 'www.opendota.com'}/matches/{mid}"},
                 "meta": {**stamp, "parsed": parsed, "available_sections": {"scoreboard": bool(players), "economy_curve": bool(gold), "xp_curve": bool(xp)},
                          "limitations": ["只返回数据源已有字段；未解析时不能推断逐分钟过程，不会提交付费或耗额解析请求。",
                                           "出装记录最多每人 50 项，曲线最多 180 分钟；缺失值不是零。",

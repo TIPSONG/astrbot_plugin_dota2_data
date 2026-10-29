@@ -17,7 +17,7 @@ from .dota_data import DataService
 from .settings import DEFAULTS, validate
 
 PLUGIN_NAME = "astrbot_plugin_dota2_data"
-VERSION = "0.1.0-dev"
+VERSION = "0.2.0-dev"
 
 
 def admin_api(handler):
@@ -178,20 +178,24 @@ class Dota2DataPlugin(Star):
 
     @admin_api
     async def page_settings(self):
-        public = {k: v for k, v in self.settings.items() if k != "opendota_api_key"}
+        public = {k: v for k, v in self.settings.items() if k not in {"opendota_api_key", "stratz_api_key"}}
         public["api_key_configured"] = bool(self.settings["opendota_api_key"])
+        public["stratz_api_key_configured"] = bool(self.settings["stratz_api_key"])
         return json_response({"status": "ok", "data": public})
 
     @admin_api
     async def page_save_settings(self):
         body = await self._body()
-        clear_key = body.pop("clear_api_key", False)
-        if type(clear_key) is not bool:
-            raise ValueError("clear_api_key 必须是布尔值。")
-        if body.get("opendota_api_key") == "":
-            body.pop("opendota_api_key")
-        if clear_key:
-            body["opendota_api_key"] = ""
+        for name, flag in (("opendota_api_key", "clear_api_key"), ("stratz_api_key", "clear_stratz_api_key")):
+            clear_key = body.pop(flag, False)
+            if type(clear_key) is not bool:
+                raise ValueError(f"{flag} 必须是布尔值。")
+            if clear_key and body.get(name):
+                raise ValueError("填写新密钥与清除密钥不能同时选择。")
+            if body.get(name) == "":
+                body.pop(name)
+            if clear_key:
+                body[name] = ""
         async with self._settings_lock:
             if self.service.status()["active_query"]:
                 raise ValueError("查询正在进行，请等本次查询结束后再修改设置。")

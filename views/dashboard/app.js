@@ -132,9 +132,14 @@ async function loadSettings() {
   for (const key of numericSettings) form.elements[key].value = data[key] ?? "";
   form.elements.timezone.value = data.timezone || "";
   form.elements.enabled.checked = data.enabled === true;
+  form.elements.data_source_priority.value = data.data_source_priority === "stratz" ? "stratz" : "opendota";
+  form.elements.fallback_enabled.checked = data.fallback_enabled !== false;
+  form.elements.stratz_api_key.value = "";
+  form.elements.clear_stratz_api_key.checked = false;
   form.elements.opendota_api_key.value = "";
   form.elements.clear_api_key.checked = false;
-  $("key-status").textContent = data.api_key_configured ? "已保存 Key；留空保持不变。" : "尚未配置 Key，可使用公开接口。";
+  $("key-status").textContent = data.api_key_configured ? "已保存 OpenDota Key；留空保持不变。" : "尚未配置 OpenDota Key，可使用公开接口。";
+  $("stratz-key-status").textContent = data.stratz_api_key_configured ? "已保存 STRATZ Token；留空保持不变。密钥有效性尚未在此页面验证。" : "尚未配置 STRATZ Token；使用 STRATZ 需要填写有效 Token。";
   settingsLoaded = true;
   $("settings-state").textContent = "已从后端读取当前设置。";
 }
@@ -227,6 +232,13 @@ function renderResult(response) {
   const badges = textNode("div", "", "result-meta");
   for (const key of ["source", "fetched_at", "cached", "complete"]) if (meta[key] != null) badges.append(textNode("span", `${fieldNames[key] || key}：${display(meta[key], key)}`, "pill neutral"));
   if (badges.childNodes.length) content.append(badges);
+  if (Array.isArray(meta.sources) && meta.sources.length) {
+    content.append(textNode("p", `本次涉及的数据源：${meta.sources.map((source) => typeof source === "string" ? source : JSON.stringify(source)).join("；")}`, "result-note provenance-note"));
+  }
+  const fallback = meta.fallbacks ?? meta.fallback ?? meta.fallback_reason;
+  if (fallback != null && fallback !== false && (!Array.isArray(fallback) || fallback.length)) {
+    content.append(textNode("p", `数据源回退：${display(fallback)}`, "result-note"));
+  }
   if (result.message) content.append(textNode("p", result.message, "result-note"));
   const notes = [...(Array.isArray(meta.limitations) ? meta.limitations : meta.limitations ? [meta.limitations] : []), ...(Array.isArray(meta.warnings) ? meta.warnings : meta.warnings ? [meta.warnings] : [])];
   notes.forEach((note) => content.append(textNode("p", typeof note === "object" ? JSON.stringify(note) : note, "result-note")));
@@ -292,14 +304,18 @@ $("settings-form").addEventListener("submit", (event) => {
   event.preventDefault(); const form = event.currentTarget;
   void busy(event.submitter || form.querySelector("[type=submit]"), async () => {
     if (!settingsLoaded) throw new Error("请先成功读取当前设置，避免覆盖未知配置。");
-    const payload = { enabled: form.elements.enabled.checked, timezone: form.elements.timezone.value.trim(), clear_api_key: form.elements.clear_api_key.checked };
+    const payload = { enabled: form.elements.enabled.checked, timezone: form.elements.timezone.value.trim(), data_source_priority: form.elements.data_source_priority.value, fallback_enabled: form.elements.fallback_enabled.checked, clear_api_key: form.elements.clear_api_key.checked, clear_stratz_api_key: form.elements.clear_stratz_api_key.checked };
     for (const key of numericSettings) payload[key] = Number(form.elements[key].value);
     const key = form.elements.opendota_api_key.value.trim();
     if (key && payload.clear_api_key) throw new Error("填写新 Key 与清除 Key 不能同时选择。");
     if (key) payload.opendota_api_key = key;
+    const stratzKey = form.elements.stratz_api_key.value.trim();
+    if (stratzKey && payload.clear_stratz_api_key) throw new Error("填写新 STRATZ Token 与清除 STRATZ Token 不能同时选择。");
+    if (stratzKey) payload.stratz_api_key = stratzKey;
     if (payload.scan_limit < payload.max_matches) throw new Error("扫描场次上限不能小于返回场次上限。");
     await api("settings", payload);
     form.elements.opendota_api_key.value = "";
+    form.elements.stratz_api_key.value = "";
     showNotice("设置已保存。");
     await loadSettings(); await loadStatus();
   });

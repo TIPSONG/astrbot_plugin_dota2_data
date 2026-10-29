@@ -4,47 +4,36 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
-from collections import deque
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import aiohttp
 
 from .errors import DataError
 from .storage import Store, utc_now
+from .budget import RequestBudget
 
 BASE_URL = "https://api.opendota.com/api"
 
 
 class OpenDota:
-    def __init__(self, store: Store, settings: dict):
+    def __init__(self, store: Store, settings: dict, budget: RequestBudget):
         self.store = store
         self.settings = settings
         self._session: aiohttp.ClientSession | None = None
         self._lock = asyncio.Lock()
-        self._minute: deque[float] = deque()
+        self.budget = budget
 
     async def get(self, path: str, params: dict | None = None, ttl: int | None = None) -> tuple[object, dict]:
         # Only service-created paths are allowed; never accept a URL from a model.
         if not path.startswith("/") or ":" in path or ".." in path or "?" in path:
             raise DataError("invalid_path", "查询路径无效。")
         clean = {key: value for key, value in (params or {}).items() if value is not None}
-        cache_key = path + "|" + json.dumps(clean, sort_keys=True, separators=(",", ":"))
+        cache_key = "opendota:v1:" + path + "|" + json.dumps(clean, sort_keys=True, separators=(",", ":"))
         async with self._lock:
             cached = self.store.cached(cache_key)
             if cached is not None:
                 data, fetched_at = cached
-                return data, {"fetched_at": fetched_at, "cached": True}
-            now = time.monotonic()
-            while self._minute and self._minute[0] <= now - 60:
-                self._minute.popleft()
-            if len(self._minute) >= self.settings["requests_per_minute"]:
-                raise DataError("rate_limited", "已达到插件每分钟请求上限，请稍后再查。")
-            day = datetime.now(ZoneInfo(self.settings["timezone"])).date().isoformat()
-            if not self.store.reserve_request(day, self.settings["daily_request_limit"]):
-                raise DataError("budget_exceeded", "已达到插件当日数据请求预算；已有有效缓存仍可读取。")
-            self._minute.append(now)
+                return data, {"source": "OpenDota", "fetched_at": fetched_at, "cached": True}
+            self.budget.reserve()
             if self._session is None or self._session.closed:
                 self._session = aiohttp.ClientSession(headers={
                     "Accept": "application/json", "User-Agent": "AstrBot-Dota2-Data/0.1"
@@ -83,7 +72,7 @@ class OpenDota:
                 raise DataError("upstream_error", "数据源未能完成这次查询。")
             fetched_at = utc_now()
             self.store.put_cache(cache_key, data, ttl or self.settings["cache_ttl_seconds"], fetched_at)
-            return data, {"fetched_at": fetched_at, "cached": False}
+            return data, {"source": "OpenDota", "fetched_at": fetched_at, "cached": False}
 
     async def close(self):
         async with self._lock:

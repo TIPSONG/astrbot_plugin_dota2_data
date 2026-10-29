@@ -7,6 +7,9 @@
   "requests_per_minute": {"type":"int","default":30,"description":"每分钟最多外部请求","hint":"1–60。本插件本地保护额度，不代表数据源承诺的配额。"},
   "daily_request_limit": {"type":"int","default":1000,"description":"每天最多外部请求","hint":"1–2000。本插件本地预算；清缓存不会清除此计数。"},
   "timezone": {"type":"string","default":"Asia/Hong_Kong","description":"日期统计时区","hint":"今天、昨天、自然周及日预算使用此时区。"},
-  "opendota_api_key": {"type":"string","default":"","description":"OpenDota API Key（可选）","hint":"可留空。只填写 OpenDota Key，不是聊天模型 Key；自定义面板不会回显密钥。"}
+  "opendota_api_key": {"type":"string","default":"","description":"OpenDota API Key（可选）","hint":"可留空。只填写 OpenDota Key，不是聊天模型 Key；自定义面板不会回显密钥。"},
+  "stratz_api_key": {"type":"string","default":"","description":"STRATZ API Token（可选）","hint":"使用 STRATZ 需要此 Token。填写原始 Token，无需 Bearer 前缀；自定义面板不会回显。"},
+  "data_source_priority": {"type":"string","default":"opendota","description":"优先数据源","options":["opendota","stratz"],"hint":"战绩、资料、单场按此选择。英雄字典和聚合英雄榜始终使用 OpenDota。"},
+  "fallback_enabled": {"type":"bool","default":true,"description":"允许失败时切换数据源","hint":"有有效 Key 才可使用 STRATZ。有效空结果不会回退；同一玩家战绩分页中途也不会切换，防止错位或重复。"}
 }
 
