@@ -1,0 +1,12 @@
+{
+  "enabled": {"type":"bool","default":true,"description":"启用数据查询","hint":"关闭后工具返回暂停状态；不会影响正常对话。"},
+  "timeout_seconds": {"type":"int","default":15,"description":"单次请求超时（秒）","hint":"3–60。网络失败会返回不可用，不会伪装成空战绩。"},
+  "cache_ttl_seconds": {"type":"int","default":300,"description":"查询缓存有效期（秒）","hint":"30–86400。"},
+  "max_matches": {"type":"int","default":50,"description":"单次最多返回场数","hint":"1–100。"},
+  "scan_limit": {"type":"int","default":500,"description":"每次查询最多扫描场数","hint":"50–2000，不能小于返回上限；覆盖不完整会明确标注。"},
+  "requests_per_minute": {"type":"int","default":30,"description":"每分钟最多外部请求","hint":"1–60。本插件本地保护额度，不代表数据源承诺的配额。"},
+  "daily_request_limit": {"type":"int","default":1000,"description":"每天最多外部请求","hint":"1–2000。本插件本地预算；清缓存不会清除此计数。"},
+  "timezone": {"type":"string","default":"Asia/Hong_Kong","description":"日期统计时区","hint":"今天、昨天、自然周及日预算使用此时区。"},
+  "opendota_api_key": {"type":"string","default":"","description":"OpenDota API Key（可选）","hint":"可留空。只填写 OpenDota Key，不是聊天模型 Key；自定义面板不会回显密钥。"}
+}
+
