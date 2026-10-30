@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Dota2 数据查询</title>
+  <link rel="stylesheet" href="./style.css?v=0.2.1">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-icon" aria-hidden="true">D₂</span><div><strong>Dota2 数据查询</strong><span>Flora 的数据工具箱</span></div></div>
+      <nav class="nav" aria-label="面板导航">
+        <button class="nav-item active" data-tab="overview" aria-current="page"><span aria-hidden="true">◈</span>概览</button>
+        <button class="nav-item" data-tab="query"><span aria-hidden="true">⌕</span>查询工作台</button>
+        <button class="nav-item" data-tab="bindings"><span aria-hidden="true">◎</span>账号绑定</button>
+        <button class="nav-item" data-tab="settings"><span aria-hidden="true">⚙</span>查询设置</button>
+        <button class="nav-item" data-tab="records"><span aria-hidden="true">≡</span>查询记录</button>
+      </nav>
+      <div class="sidebar-note"><span class="pill neutral">开发版本 · 已通过隔离测试</span><p>数据由工具提供。对话、语气和记忆仍交给原来的 Bot。</p></div>
+    </aside>
+
+    <main>
+      <header class="topbar"><div><div class="eyebrow">DOTA2 · DATA WORKSPACE</div><h1 id="page-title">数据与对话，各司其职</h1></div><button id="refresh" class="button secondary" type="button">刷新面板</button></header>
+      <div id="connection" class="notice" role="status">等待 AstrBot 面板连接…</div>
+      <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
+
+      <section id="tab-overview" class="tab-panel" aria-label="概览">
+        <div class="hero-card"><div><span class="eyebrow">只取事实 · 保留表达</span><h2>让熟悉的她，读懂你的比赛。</h2><p>自然语言提问由现有对话模型理解，再调用查询工具。这里管理数据来源、账号与查询范围。</p><button class="button" type="button" data-open-tab="query">打开查询工作台 <span aria-hidden="true">↗</span></button></div><div class="hero-mark" aria-hidden="true"><span>DATA</span><strong>D₂</strong><span>FOR YOUR BOT</span></div></div>
+        <div class="stats-grid" id="stats"><article class="stat"><span>工具开关</span><strong id="stat-enabled">—</strong><small>以当前后端配置为准</small></article><article class="stat"><span>账号绑定</span><strong id="stat-bindings">—</strong><small>按会话和用户保存</small></article><article class="stat"><span>缓存条目</span><strong id="stat-cache">—</strong><small>减少重复数据请求</small></article><article class="stat"><span>今日外部请求</span><strong id="stat-requests">—</strong><small>不是模型 Token 用量</small></article></div>
+        <div class="two-column"><article class="card"><div class="card-heading"><h2>可以这样问 Flora</h2><span class="pill">自然语言</span></div><ul class="example-list"><li>看看我昨天的战绩，只看天梯。</li><li>我斧王最近十把发挥怎么样？</li><li>这周和上周相比，我进步了吗？</li><li>我们一起打的那几局，谁更稳定？</li></ul><p class="muted">“我”需要先绑定账号。复杂提问依赖现有聊天模型的工具调用能力，实际表现尚未运行验证。</p></article><article class="card"><h2>当前设计边界</h2><div class="boundary-list"><p><span>01</span>按请求获取公开比赛数据</p><p><span>02</span>查询结果返回原对话流程</p><p><span>03</span>不修改人设，不主动插话</p><p><span>04</span>数据缺失和范围限制如实保留</p></div><details><summary>查看后端状态原文</summary><pre id="status-raw">尚未读取。</pre></details></article></div>
+      </section>
+
+      <section id="tab-query" class="tab-panel hidden" aria-label="查询工作台">
+        <div class="section-intro"><h2>查询工作台</h2><p>这里是管理员的结构化查询入口。聊天中直接向 Flora 提问即可，不需要填写这些表单。</p></div>
+        <form id="query-form" class="card form-card">
+          <div class="field-grid"><label>查询类型<select name="action" id="query-action"><option value="matches">条件战绩</option><option value="profile">玩家资料</option><option value="match">单场详情</option><option value="hero_pool">英雄池</option><option value="compare">多人比较</option><option value="meta">英雄版本统计</option></select></label><label data-query-for="profile matches hero_pool">目标账号或本会话别名<input name="target" value="me" placeholder="我 / account ID / 已绑定别名" maxlength="128"><small>使用“我”或别名时需填写下方会话信息。</small></label><label data-query-for="match" class="hidden">比赛 ID<input name="match_id" inputmode="numeric" placeholder="输入具体比赛编号" maxlength="24"></label><label data-query-for="compare" class="hidden">对比玩家<textarea name="targets" rows="2" placeholder="每行一个 account ID 或本会话别名" maxlength="1200"></textarea></label></div>
+          <div class="field-grid query-filters"><label data-query-for="matches hero_pool compare meta">英雄<input name="hero" placeholder="全部英雄，或输入名称 / ID" maxlength="80"></label><label data-query-for="matches hero_pool compare">模式<select name="mode"><option value="all">全部模式</option><option value="ranked">天梯</option><option value="normal">普通匹配</option><option value="turbo">加速模式</option></select></label><label data-query-for="matches hero_pool compare">胜负<select name="outcome"><option value="all">全部</option><option value="win">胜场</option><option value="loss">负场</option></select></label><label data-query-for="matches hero_pool compare meta">返回上限<input name="limit" type="number" value="20" min="1" max="100"></label><label data-query-for="matches hero_pool compare">时间范围<select name="period" id="query-period"><option value="7d">最近 7 天</option><option value="today">今天</option><option value="yesterday">昨天</option><option value="this_week">本周</option><option value="last_week">上周</option><option value="30d">最近 30 天</option><option value="all">不限制时间</option><option value="custom">自选日期</option></select></label><label id="start-date-field" class="hidden">开始日期<input name="start_date" type="date"></label><label id="end-date-field" class="hidden">结束日期（包含当天）<input name="end_date" type="date"></label></div>
+          <label class="check-row hidden" data-query-for="compare"><input name="common_matches_only" type="checkbox">只比较这些玩家共同参与的对局</label>
+          <details class="context-details"><summary>会话身份 · 查询“我”或别名时填写</summary><div class="field-grid"><label>会话标识<input name="scope" placeholder="AstrBot unified_msg_origin" maxlength="256" autocomplete="off"></label><label>发送者 ID<input name="user_id" placeholder="QQ 用户 ID 或平台用户 ID" maxlength="128" autocomplete="off"></label></div><p class="muted">面板管理员可以指定查询身份；聊天工具会从收到的消息读取真实身份。</p></details>
+          <div class="form-actions"><p class="muted">数据可能延迟或未解析。查看结果中的时间范围和完整性说明。</p><button type="submit" class="button" data-busy-label="查询中…">查询数据</button></div>
+        </form>
+        <article class="card result-card" aria-live="polite"><div class="card-heading"><h2>查询结果</h2><span id="result-status" class="pill neutral">尚未查询</span></div><div id="result-content" class="empty-state"><span aria-hidden="true">⌕</span><p>选择查询条件，数据会显示在这里。</p></div><details id="result-detail" class="hidden"><summary>查看完整结构化结果</summary><pre id="result-raw"></pre></details></article>
+      </section>
+
+      <section id="tab-bindings" class="tab-panel hidden" aria-label="账号绑定">
+        <div class="section-intro"><h2>账号绑定</h2><p>把平台身份与 Dota 账号对应起来。绑定按会话保存；也可以在聊天中用自然语言绑定自己的账号。</p></div>
+        <form id="binding-form" class="card form-card"><div class="field-grid"><label>会话标识<input required name="scope" placeholder="AstrBot unified_msg_origin" maxlength="256" autocomplete="off"></label><label>发送者 ID<input required name="user_id" placeholder="平台用户 ID" maxlength="128" autocomplete="off"></label><label>Dota account ID / Steam64<input required name="account_id" inputmode="numeric" placeholder="数字账号 ID" maxlength="24" autocomplete="off"></label><label>查询别名（可选）<input name="alias" placeholder="便于查询的称呼" maxlength="40"></label></div><div class="form-actions"><p class="muted">相同会话和发送者的绑定会被更新。Steam 自定义主页名不能直接代替数字 ID。</p><button type="submit" class="button" data-busy-label="保存中…">保存绑定</button></div></form>
+        <article class="card"><div class="card-heading"><h2>已保存的绑定</h2><button id="reload-bindings" class="button secondary small" type="button">刷新</button></div><div id="bindings-list" class="empty-state">尚未读取。</div></article>
+      </section>
+
+      <section id="tab-settings" class="tab-panel hidden" aria-label="查询设置">
+        <div class="section-intro"><h2>查询设置</h2><p>这些参数仅控制数据工具。人设、聊天模型和记忆配置由原有系统管理。</p></div>
+        <form id="settings-form" class="card form-card">
+          <label class="check-row prominent"><input name="enabled" type="checkbox">启用 Dota2 查询工具</label>
+          <div class="source-settings">
+            <div class="field-grid">
+              <label>优先数据源<select name="data_source_priority"><option value="opendota">OpenDota 优先</option><option value="stratz">STRATZ 优先</option></select><small>优先级用于支持切换的玩家与对局查询。</small></label>
+              <label>STRATZ API Token<input name="stratz_api_key" type="password" autocomplete="new-password" placeholder="留空保留已有 Token" maxlength="4096"><small id="stratz-key-status">尚未读取 Token 状态；面板不会显示已保存的密钥。</small></label>
+            </div>
+            <label class="check-row"><input name="fallback_enabled" type="checkbox">首选数据源失败时，允许使用另一可用数据源</label>
+            <label class="check-row"><input name="clear_stratz_api_key" type="checkbox">明确清除已保存的 STRATZ Token</label>
+            <p class="source-hint">STRATZ 需要有效的 API Token。英雄字典和英雄聚合统计始终由 OpenDota 提供，不随优先级切换；每次结果会标明实际来源与回退情况。</p>
+          </div>
+          <div class="field-grid"><label>请求超时（秒）<input name="timeout_seconds" type="number" min="3" max="60" required></label><label>缓存有效期（秒）<input name="cache_ttl_seconds" type="number" min="30" max="86400" required></label><label>单次返回场次上限<input name="max_matches" type="number" min="1" max="100" required></label><label>单次扫描场次上限<input name="scan_limit" type="number" min="50" max="2000" required></label><label>每分钟外部请求上限<input name="requests_per_minute" type="number" min="1" max="60" required></label><label>每天外部请求上限<input name="daily_request_limit" type="number" min="1" max="2000" required></label><label>统计时区<input name="timezone" placeholder="Asia/Hong_Kong" maxlength="80" required></label><label>OpenDota API Key（可选）<input name="opendota_api_key" type="password" autocomplete="new-password" placeholder="留空保留已有 Key" maxlength="512"><small id="key-status">尚未读取 Key 状态；面板不会显示已保存的密钥。</small></label></div>
+          <label class="check-row"><input name="clear_api_key" type="checkbox">明确清除已保存的 OpenDota API Key</label>
+          <div class="form-actions"><span id="settings-state" class="muted">等待读取设置。</span><div class="button-group"><button id="reload-settings" class="button secondary" type="button">重新读取</button><button type="submit" class="button" data-busy-label="保存中…">保存设置</button></div></div>
+        </form>
+        <article class="card maintenance"><div><h2>查询缓存</h2><p class="muted">清空已缓存的公开数据。账号绑定和查询记录保留，下次查询可能重新请求外部数据源。</p></div><button id="clear-cache" class="button secondary" type="button" data-busy-label="清理中…">清空缓存</button></article>
+      </section>
+
+      <section id="tab-records" class="tab-panel hidden" aria-label="查询记录"><div class="section-intro"><h2>查询记录</h2><p>只记录工具查询摘要。这里不保存聊天原文、人设或 API 密钥。</p></div><article class="card"><div class="card-heading"><h2>最近的查询</h2><button id="reload-records" class="button secondary small" type="button">刷新</button></div><div id="records-list" class="empty-state">尚未读取。</div></article></section>
+      <footer>实际数据来源以查询结果为准 · 原人设负责回答 · 无主动播报</footer>
+    </main>
+  </div>
+  <script type="module" src="./app.js?v=0.2.1"></script>
+</body>
+</html>

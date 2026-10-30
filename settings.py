@@ -54,4 +54,3 @@ def validate(values: dict) -> dict:
             raise ValueError(f"{name} 格式不正确。")
         result[name] = key.strip()
     return result
-

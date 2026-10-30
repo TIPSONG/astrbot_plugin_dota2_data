@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 
 import aiohttp
 
@@ -12,6 +13,9 @@ from .storage import Store, utc_now
 from .budget import RequestBudget
 
 BASE_URL = "https://api.opendota.com/api"
+MATCH_FIELDS = ["hero_id", "start_time", "duration", "game_mode", "lobby_type", "version",
+                "kills", "deaths", "assists", "gold_per_min", "xp_per_min", "last_hits",
+                "hero_damage", "tower_damage", "hero_healing", "lane_role"]
 
 
 class OpenDota:
@@ -27,6 +31,10 @@ class OpenDota:
         if not path.startswith("/") or ":" in path or ".." in path or "?" in path:
             raise DataError("invalid_path", "查询路径无效。")
         clean = {key: value for key, value in (params or {}).items() if value is not None}
+        if re.fullmatch(r"/players/[0-9]+/matches", path):
+            # OpenDota's default projection omits economy metrics. Supplying
+            # project replaces default match fields, so retain all needed fields.
+            clean["project"] = MATCH_FIELDS
         cache_key = "opendota:v1:" + path + "|" + json.dumps(clean, sort_keys=True, separators=(",", ":"))
         async with self._lock:
             cached = self.store.cached(cache_key)
@@ -36,7 +44,7 @@ class OpenDota:
             self.budget.reserve()
             if self._session is None or self._session.closed:
                 self._session = aiohttp.ClientSession(headers={
-                    "Accept": "application/json", "User-Agent": "AstrBot-Dota2-Data/0.1"
+                    "Accept": "application/json", "User-Agent": "AstrBot-Dota2-Data/0.2"
                 })
             query = dict(clean)
             if self.settings.get("opendota_api_key"):
@@ -79,4 +87,3 @@ class OpenDota:
             if self._session is not None and not self._session.closed:
                 await self._session.close()
             self._session = None
-

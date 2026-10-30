@@ -65,4 +65,3 @@ class DataAPI:
             await self.clients["opendota"].close()
         finally:
             await self.clients["stratz"].close()
-

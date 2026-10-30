@@ -23,4 +23,3 @@ class RequestBudget:
         if not self.store.reserve_request(day, self.settings["daily_request_limit"]):
             raise DataError("budget_exceeded", "已达到双数据源共享的当日请求预算；已有有效缓存仍可读取。")
         self._minute.append(now)
-

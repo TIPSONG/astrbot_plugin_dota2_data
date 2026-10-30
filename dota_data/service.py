@@ -492,4 +492,3 @@ class DataService:
                 "coverage": {"eligible_heroes": len(result), "returned_heroes": len(result[:limit])},
                 "limitations": ["统计窗口与补丁边界未由响应明确给出，不能将此榜称为当前补丁的纯样本。",
                                  "这里只提供聚合胜率，不代表个人适合度、出装建议或位置专属胜率。"]}}
-

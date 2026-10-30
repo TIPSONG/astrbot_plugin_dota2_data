@@ -137,4 +137,3 @@ class Store:
                 "requests_today": count[0] if count else 0,
                 "last_query_at": db.execute("SELECT MAX(at) FROM query_log").fetchone()[0],
             }
-

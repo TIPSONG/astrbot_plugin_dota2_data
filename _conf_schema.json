@@ -12,4 +12,3 @@
   "data_source_priority": {"type":"string","default":"opendota","description":"优先数据源","options":["opendota","stratz"],"hint":"战绩、资料、单场按此选择。英雄字典和聚合英雄榜始终使用 OpenDota。"},
   "fallback_enabled": {"type":"bool","default":true,"description":"允许失败时切换数据源","hint":"有有效 Key 才可使用 STRATZ。有效空结果不会回退；同一玩家战绩分页中途也不会切换，防止错位或重复。"}
 }
-

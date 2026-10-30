@@ -1,8 +1,7 @@
 name: astrbot_plugin_dota2_data
 display_name: Dota2 数据查询
-desc: 供现有对话角色调用的 Dota2 事实查询工具，含账号绑定、战绩、单场、英雄池、对比与管理面板。开发版本，尚未运行验证。
-version: v0.2.0-dev
+desc: 供现有对话角色调用的 Dota2 事实查询工具，含账号绑定、战绩、单场、英雄池、对比与管理面板。已通过隔离测试，正式聊天链路待验收。
+version: v0.2.1-dev
 author: TIPSONG
 repo: https://github.com/TIPSONG/astrbot_plugin_dota2_data
 astrbot_version: ">=4.28.2"
-

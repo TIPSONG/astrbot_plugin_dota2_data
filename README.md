@@ -2,7 +2,7 @@
 
 让现有的 AstrBot 角色通过工具查询 Dota2 数据，再由原来的对话流程回答。插件负责取数、筛选、统计和返回依据，不创建另一套聊天人格。
 
-**当前版本：`0.2.0-dev`，开发源码，尚未安装或运行测试。** 本次交付包含源码与管理面板；没有向现有 AstrBot 安装目录写入文件，也没有运行真实查询验收。功能是否在具体 AstrBot 版本、提供商和 QQ 适配器上完整可用，仍需后续验证。
+**当前版本：`0.2.1-dev`，已通过隔离测试及双数据源真实查询。** 38 项自动测试通过，并验证了 OpenDota、STRATZ 的六类查询及英雄／胜负组合筛选。没有安装到正在运行的 Bot；QQ、实际聊天模型和其他插件共同启用时的完整对话链路仍待验收。详见 [测试报告](docs/TEST_REPORT.md)。
 
 仓库：<https://github.com/TIPSONG/astrbot_plugin_dota2_data>
 
@@ -51,7 +51,7 @@
 
 ## 管理面板
 
-面板源码位于 `views/dashboard/`，通过 AstrBot 提供的视图 bridge 请求插件 API，不单独启动 HTTP 服务，不在浏览器保存 AstrBot 登录令牌。
+面板源码位于 `pages/dashboard/`，通过 AstrBot 提供的视图 bridge 请求插件 API，不单独启动 HTTP 服务，不在浏览器保存 AstrBot 登录令牌。`pages/` 是本机 AstrBot 4.28.2 实际扫描的目录。
 
 面板用于管理员管理数据查询服务：
 
@@ -61,7 +61,7 @@
 - **设置：**选择优先数据源与失败回退策略，调整超时、缓存、查询数量和请求预算；可选填写 OpenDota Key 或 STRATZ Token。
 - **记录：**查看有限的查询摘要，帮助区分空结果、参数错误和数据源失败。
 
-面板依赖上述 AstrBot 版本的插件可视化视图及 Web API。当前尚未进行页面实际打开、登录态传递或保存配置的运行验证。
+面板已在隔离环境中使用实际 AstrBot bridge 和处理器验证设置保存、绑定和查询，完成桌面与 390px 窄屏检查。正式 Dashboard 的登录态及插件入口仍需在安装后验收；隔离测试没有绕过或修改正式实例的鉴权。
 
 ## 默认配置
 
@@ -98,7 +98,7 @@ OpenDota 与 STRATZ 共用上述每分钟及每日请求预算，缓存按数据
 
 只有初次取数失败且开启回退时，才尝试另一可用来源；正常的空结果不是接口失败，不会因此换源。个人战绩分页一旦选定来源，后续页固定使用该来源，避免把两个来源的分页记录悄悄混在一起。结果记录实际使用的数据源及覆盖范围；使用多个账号做比较时，仍需留意各账号取到的数据来源和完整程度。
 
-STRATZ 需要管理员提供 Token。其 GraphQL 字段、响应与账号权限仍待实际验证；此次没有调用真实 STRATZ 或 OpenDota 接口，不能把适配代码当作已经验证通过的连通性或兼容性证明。
+STRATZ 需要管理员提供 Token。本版已用有效 Token 验证公开职业玩家的资料、对局列表、单场及英雄／胜负组合筛选；Token 不随仓库提供。其他账号的隐私和接口权限可能不同，有限样本验证不代表所有账号均可读取。
 
 英雄字典读取失败时，已取得的 STRATZ 对局仍可返回英雄 ID；常见内置别名与明确数字 ID 可继续用于筛选。无法确定的英文或其他别名会要求补充信息，不猜测英雄。两个来源的玩家槽位和版本编号不直接互换，返回值保留独立字段。
 
@@ -115,11 +115,20 @@ STRATZ 需要管理员提供 Token。其 GraphQL 字段、响应与账号权限�
 
 ## 后续验收
 
-详见 [待执行验收清单](docs/ACCEPTANCE.md)。本仓库没有设置自动运行测试的 CI；清单中的项目均未勾选，不能把它当作已通过的测试报告。
+详见 [验收清单](docs/ACCEPTANCE.md) 与 [测试报告](docs/TEST_REPORT.md)。本仓库没有配置自动运行 CI。
+
+离线测试不访问外网，也不启动或修改正式 Bot：
+
+```shell
+python -B tests/run_tests.py --astrbot-app /path/to/astrbot/app
+```
+
+使用含 `aiohttp`、`tzdata` 和 AstrBot 依赖的 Python。`--astrbot-app` 指向包含 `astrbot` 包的目录；不提供且 Python 中没有 AstrBot 时，框架测试会明确跳过。测试数据只写入已忽略的 `.test-tmp/`，运行前会覆盖 `ASTRBOT_ROOT` 为隔离目录。
+
+`tests/live_queries.py` 是明确选择运行的联网测试；可通过 `--stratz-token-file` 提供本地 Token 文件。它使用公开职业账号，每轮限制为 20 次外部请求，不读取现有 Bot 配置。不要提交真实密钥或测试数据库。
 
 实现结构见 [架构说明](docs/ARCHITECTURE.md)，来源说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 许可
 
 代码使用 [MIT License](LICENSE)。数据仍受相应数据源条款约束。
-

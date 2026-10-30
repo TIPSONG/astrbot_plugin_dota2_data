@@ -10,4 +10,3 @@ class DataError(Exception):
 
 class NeedsInput(DataError):
     pass
-

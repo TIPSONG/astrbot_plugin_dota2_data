@@ -17,7 +17,7 @@ from .dota_data import DataService
 from .settings import DEFAULTS, validate
 
 PLUGIN_NAME = "astrbot_plugin_dota2_data"
-VERSION = "0.2.0-dev"
+VERSION = "0.2.1-dev"
 
 
 def admin_api(handler):
@@ -173,7 +173,8 @@ class Dota2DataPlugin(Star):
     async def page_status(self):
         return json_response({"status": "ok", "data": {
             **self.service.status(), "version": VERSION, "development_build": True,
-            "validation": "not_run", "reply_mode": "native_tools_only",
+            "validation": "isolated_tests_passed", "live_bot_validation": "not_run",
+            "reply_mode": "native_tools_only",
         }})
 
     @admin_api
@@ -251,4 +252,3 @@ class Dota2DataPlugin(Star):
         if isinstance(registry, list):
             registry[:] = [row for row in registry if not any(
                 row[0] == route and row[1] == handler for route, handler in self._routes)]
-
