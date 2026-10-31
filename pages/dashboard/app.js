@@ -130,7 +130,9 @@ async function loadStatus() {
   $("stat-cache").textContent = firstPresent(data, ["cache_entries", "cache_count"]);
   $("stat-requests").textContent = firstPresent(data, ["requests_today", "daily_requests"]);
   $("status-raw").textContent = JSON.stringify(data, null, 2);
-  $("connection").textContent = `已读取插件后端状态 · ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}。此状态不表示外部数据源已通过连通性测试。`;
+  const preferred = { stratz: "STRATZ", opendota: "OpenDota" }[data.data_source_priority] || "未知";
+  const tokenState = data.stratz_configured ? "已配置" : "未配置";
+  $("connection").textContent = `玩家与比赛查询优先使用 ${preferred}。STRATZ Token ${tokenState}。渠道连通性以实际查询结果为准。`;
   $("connection").className = "notice";
 }
 

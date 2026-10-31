@@ -2,7 +2,7 @@
 
 让现有的 AstrBot 角色通过工具查询 Dota2 数据，再由原来的对话流程回答。插件负责取数、筛选、统计和返回依据，不创建另一套聊天人格。
 
-**当前版本：`0.2.1-dev`，已通过隔离测试及双数据源真实查询。** 38 项自动测试通过，并验证了 OpenDota、STRATZ 的六类查询及英雄／胜负组合筛选。没有安装到正在运行的 Bot；QQ、实际聊天模型和其他插件共同启用时的完整对话链路仍待验收。详见 [测试报告](docs/TEST_REPORT.md)。
+**当前版本为 `v0.2.2`。** 面板概览显示玩家与比赛查询的首选渠道和 STRATZ Token 配置状态。工具用 `meta.source` 标明本次实际数据源，用 `source_requests` 记录各次读取。双数据源测试范围见[测试报告](docs/TEST_REPORT.md)。
 
 仓库：<https://github.com/TIPSONG/astrbot_plugin_dota2_data>
 

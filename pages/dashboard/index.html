@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
   <title>Dota2 数据查询</title>
-  <link rel="stylesheet" href="./style.css?v=0.2.1">
+  <link rel="stylesheet" href="./style.css?v=0.2.2">
 </head>
 <body>
   <div class="shell">
@@ -18,7 +18,7 @@
         <button class="nav-item" data-tab="settings"><span aria-hidden="true">⚙</span>查询设置</button>
         <button class="nav-item" data-tab="records"><span aria-hidden="true">≡</span>查询记录</button>
       </nav>
-      <div class="sidebar-note"><span class="pill neutral">开发版本 · 已通过隔离测试</span><p>数据由工具提供。对话、语气和记忆仍交给原来的 Bot。</p></div>
+      <div class="sidebar-note"><span class="pill neutral">v0.2.2</span><p>数据由工具提供。对话、语气和记忆仍交给原来的 Bot。</p></div>
     </aside>
 
     <main>
@@ -29,7 +29,7 @@
       <section id="tab-overview" class="tab-panel" aria-label="概览">
         <div class="hero-card"><div><span class="eyebrow">只取事实 · 保留表达</span><h2>让熟悉的她，读懂你的比赛。</h2><p>自然语言提问由现有对话模型理解，再调用查询工具。这里管理数据来源、账号与查询范围。</p><button class="button" type="button" data-open-tab="query">打开查询工作台 <span aria-hidden="true">↗</span></button></div><div class="hero-mark" aria-hidden="true"><span>DATA</span><strong>D₂</strong><span>FOR YOUR BOT</span></div></div>
         <div class="stats-grid" id="stats"><article class="stat"><span>工具开关</span><strong id="stat-enabled">—</strong><small>以当前后端配置为准</small></article><article class="stat"><span>账号绑定</span><strong id="stat-bindings">—</strong><small>按会话和用户保存</small></article><article class="stat"><span>缓存条目</span><strong id="stat-cache">—</strong><small>减少重复数据请求</small></article><article class="stat"><span>今日外部请求</span><strong id="stat-requests">—</strong><small>不是模型 Token 用量</small></article></div>
-        <div class="two-column"><article class="card"><div class="card-heading"><h2>可以这样问 Flora</h2><span class="pill">自然语言</span></div><ul class="example-list"><li>看看我昨天的战绩，只看天梯。</li><li>我斧王最近十把发挥怎么样？</li><li>这周和上周相比，我进步了吗？</li><li>我们一起打的那几局，谁更稳定？</li></ul><p class="muted">“我”需要先绑定账号。复杂提问依赖现有聊天模型的工具调用能力，实际表现尚未运行验证。</p></article><article class="card"><h2>当前设计边界</h2><div class="boundary-list"><p><span>01</span>按请求获取公开比赛数据</p><p><span>02</span>查询结果返回原对话流程</p><p><span>03</span>不修改人设，不主动插话</p><p><span>04</span>数据缺失和范围限制如实保留</p></div><details><summary>查看后端状态原文</summary><pre id="status-raw">尚未读取。</pre></details></article></div>
+        <div class="two-column"><article class="card"><div class="card-heading"><h2>可以这样问 Flora</h2><span class="pill">自然语言</span></div><ul class="example-list"><li>看看我昨天的战绩，只看天梯。</li><li>我斧王最近十把发挥怎么样？</li><li>这周和上周相比，我进步了吗？</li><li>我们一起打的那几局，谁更稳定？</li></ul><p class="muted">“我”需要先绑定账号。可在查询结果中查看本次实际使用的数据源。</p></article><article class="card"><h2>当前设计边界</h2><div class="boundary-list"><p><span>01</span>按请求获取公开比赛数据</p><p><span>02</span>查询结果返回原对话流程</p><p><span>03</span>不修改人设，不主动插话</p><p><span>04</span>数据缺失和范围限制如实保留</p></div><details><summary>查看后端状态原文</summary><pre id="status-raw">尚未读取。</pre></details></article></div>
       </section>
 
       <section id="tab-query" class="tab-panel hidden" aria-label="查询工作台">
@@ -74,6 +74,6 @@
       <footer>实际数据来源以查询结果为准 · 原人设负责回答 · 无主动播报</footer>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.2.1"></script>
+  <script type="module" src="./app.js?v=0.2.2"></script>
 </body>
 </html>
