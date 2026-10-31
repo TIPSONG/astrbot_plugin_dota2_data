@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
   <title>Dota2 数据查询</title>
-  <link rel="stylesheet" href="./style.css?v=0.2.2">
+  <link rel="stylesheet" href="./style.css?v=0.3.0">
 </head>
 <body>
   <div class="shell">
@@ -18,7 +18,7 @@
         <button class="nav-item" data-tab="settings"><span aria-hidden="true">⚙</span>查询设置</button>
         <button class="nav-item" data-tab="records"><span aria-hidden="true">≡</span>查询记录</button>
       </nav>
-      <div class="sidebar-note"><span class="pill neutral">v0.2.2</span><p>数据由工具提供。对话、语气和记忆仍交给原来的 Bot。</p></div>
+      <div class="sidebar-note"><span class="pill neutral">v0.3.0</span><p>数据由工具提供。对话、语气和记忆仍交给原来的 Bot。</p></div>
     </aside>
 
     <main>
@@ -35,8 +35,8 @@
       <section id="tab-query" class="tab-panel hidden" aria-label="查询工作台">
         <div class="section-intro"><h2>查询工作台</h2><p>这里是管理员的结构化查询入口。聊天中直接向 Flora 提问即可，不需要填写这些表单。</p></div>
         <form id="query-form" class="card form-card">
-          <div class="field-grid"><label>查询类型<select name="action" id="query-action"><option value="matches">条件战绩</option><option value="profile">玩家资料</option><option value="match">单场详情</option><option value="hero_pool">英雄池</option><option value="compare">多人比较</option><option value="meta">英雄版本统计</option></select></label><label data-query-for="profile matches hero_pool">目标账号或本会话别名<input name="target" value="me" placeholder="我 / account ID / 已绑定别名" maxlength="128"><small>使用“我”或别名时需填写下方会话信息。</small></label><label data-query-for="match" class="hidden">比赛 ID<input name="match_id" inputmode="numeric" placeholder="输入具体比赛编号" maxlength="24"></label><label data-query-for="compare" class="hidden">对比玩家<textarea name="targets" rows="2" placeholder="每行一个 account ID 或本会话别名" maxlength="1200"></textarea></label></div>
-          <div class="field-grid query-filters"><label data-query-for="matches hero_pool compare meta">英雄<input name="hero" placeholder="全部英雄，或输入名称 / ID" maxlength="80"></label><label data-query-for="matches hero_pool compare">模式<select name="mode"><option value="all">全部模式</option><option value="ranked">天梯</option><option value="normal">普通匹配</option><option value="turbo">加速模式</option></select></label><label data-query-for="matches hero_pool compare">胜负<select name="outcome"><option value="all">全部</option><option value="win">胜场</option><option value="loss">负场</option></select></label><label data-query-for="matches hero_pool compare meta">返回上限<input name="limit" type="number" value="20" min="1" max="100"></label><label data-query-for="matches hero_pool compare">时间范围<select name="period" id="query-period"><option value="7d">最近 7 天</option><option value="today">今天</option><option value="yesterday">昨天</option><option value="this_week">本周</option><option value="last_week">上周</option><option value="30d">最近 30 天</option><option value="all">不限制时间</option><option value="custom">自选日期</option></select></label><label id="start-date-field" class="hidden">开始日期<input name="start_date" type="date"></label><label id="end-date-field" class="hidden">结束日期（包含当天）<input name="end_date" type="date"></label></div>
+          <div class="field-grid"><label>查询类型<select name="action" id="query-action"><option value="matches">条件战绩</option><option value="profile">玩家资料</option><option value="match">单场详情</option><option value="hero_pool">英雄池</option><option value="compare">多人比较</option><option value="meta">英雄版本统计</option></select></label><label data-query-for="profile matches hero_pool">目标账号或本会话别名<input name="target" value="me" placeholder="我 / account ID / 已绑定别名" maxlength="128"><small>使用“我”或别名时需填写下方会话信息。</small></label><label data-query-for="match" class="hidden">复盘玩家（可选）<input name="match_target" maxlength="80" placeholder="我 / 账号 / 别名，也可在下方选英雄"></label><label data-query-for="match" class="hidden">复盘截止装备（可选）<input name="until_item" maxlength="80" placeholder="例如 跳刀、黑皇杖或物品 ID"></label><label data-query-for="match" class="hidden">比赛 ID<input name="match_id" inputmode="numeric" placeholder="输入具体比赛编号" maxlength="24"></label><label data-query-for="compare" class="hidden">对比玩家<textarea name="targets" rows="2" placeholder="每行一个 account ID 或本会话别名" maxlength="1200"></textarea></label></div>
+          <div class="field-grid query-filters"><label data-query-for="matches hero_pool compare meta match">英雄<input name="hero" placeholder="全部英雄，或输入名称 / ID" maxlength="80"></label><label data-query-for="matches hero_pool compare">模式<select name="mode"><option value="all">全部模式</option><option value="ranked">天梯</option><option value="normal">普通匹配</option><option value="turbo">加速模式</option></select></label><label data-query-for="matches hero_pool compare">胜负<select name="outcome"><option value="all">全部</option><option value="win">胜场</option><option value="loss">负场</option></select></label><label data-query-for="matches hero_pool compare meta">返回上限<input name="limit" type="number" value="20" min="1" max="100"></label><label data-query-for="matches hero_pool compare">时间范围<select name="period" id="query-period"><option value="7d">最近 7 天</option><option value="today">今天</option><option value="yesterday">昨天</option><option value="this_week">本周</option><option value="last_week">上周</option><option value="30d">最近 30 天</option><option value="all">不限制时间</option><option value="custom">自选日期</option></select></label><label id="start-date-field" class="hidden">开始日期<input name="start_date" type="date"></label><label id="end-date-field" class="hidden">结束日期（包含当天）<input name="end_date" type="date"></label></div>
           <label class="check-row hidden" data-query-for="compare"><input name="common_matches_only" type="checkbox">只比较这些玩家共同参与的对局</label>
           <details class="context-details"><summary>会话身份 · 查询“我”或别名时填写</summary><div class="field-grid"><label>会话标识<input name="scope" placeholder="AstrBot unified_msg_origin" maxlength="256" autocomplete="off"></label><label>发送者 ID<input name="user_id" placeholder="QQ 用户 ID 或平台用户 ID" maxlength="128" autocomplete="off"></label></div><p class="muted">面板管理员可以指定查询身份；聊天工具会从收到的消息读取真实身份。</p></details>
           <div class="form-actions"><p class="muted">数据可能延迟或未解析。查看结果中的时间范围和完整性说明。</p><button type="submit" class="button" data-busy-label="查询中…">查询数据</button></div>
@@ -74,6 +74,6 @@
       <footer>实际数据来源以查询结果为准 · 原人设负责回答 · 无主动播报</footer>
     </main>
   </div>
-  <script type="module" src="./app.js?v=0.2.2"></script>
+  <script type="module" src="./app.js?v=0.3.0"></script>
 </body>
 </html>

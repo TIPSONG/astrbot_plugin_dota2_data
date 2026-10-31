@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from .router import DataAPI
 from .errors import DataError, NeedsInput
 from .storage import Store, utc_now
+from .timeline import player_timeline, resolve_item
 from .validation import (
     HERO_ALIASES, account_id, bounded_int, checked_settings, date_window,
     identity, match_id, normalized,
@@ -32,7 +33,7 @@ PARAMETERS = {
     "profile": {"target", "player"},
     "matches": {"target", "player"} | MATCH_FILTERS,
     "hero_pool": {"target", "player"} | MATCH_FILTERS,
-    "match": {"match_id"},
+    "match": {"match_id", "target", "hero", "until_item"},
     "compare": {"targets", "players", "common_matches_only"} | MATCH_FILTERS,
     "meta": {"hero", "rank", "min_matches", "limit"},
 }
@@ -223,7 +224,7 @@ class DataService:
         if action in {"matches", "hero_pool"}:
             return await self._player_matches(action, params, scope, user_id)
         if action == "match":
-            return await self._match(params)
+            return await self._match(params, scope, user_id)
         if action == "compare":
             return await self._compare(params, scope, user_id)
         return await self._meta(params)
@@ -389,13 +390,33 @@ class DataService:
                                           "公开 API 可能缺少或延迟收录比赛；空结果不等于没有打过比赛。",
                                           "normal 表示普通大厅且排除加速；all 会混合模式，比较时请指定模式。"]}}
 
-    async def _match(self, params: dict) -> dict:
+    async def _match(self, params: dict, scope: str, user_id: str) -> dict:
         mid = match_id(params.get("match_id"))
+        focused = any(k in params for k in ("target", "hero", "until_item"))
+        item_id = resolve_item(params.get("until_item"))
+        aid = None
+        if "target" in params or (focused and "hero" not in params):
+            aid = self._resolve(params.get("target", "me"), scope, user_id)
         row, stamp = await self.api.get(f"/matches/{mid}")
         if not isinstance(row, dict) or not row.get("match_id"):
             raise DataError("not_found", "暂未取得该对局详情。")
         heroes, _ = await self._heroes()
         raw_players = row.get("players") if isinstance(row.get("players"), list) else []
+        if focused:
+            hid = self._hero_id(params["hero"], heroes) if "hero" in params else None
+            if aid is None and hid is None:
+                raise NeedsInput("missing_player", "个人时间线需要明确的参赛账号或英雄。")
+            participants = [p for p in raw_players if isinstance(p, dict)]
+            matches = [p for p in participants if (aid is None or p.get("account_id") == aid)
+                       and (hid is None or p.get("hero_id") == hid)]
+            if len(matches) != 1:
+                raise NeedsInput("player_not_identified", "这局未能唯一匹配该玩家，请核对账号或指定当局英雄。")
+            detail = player_timeline(matches[0], participants, number(row.get("duration")), item_id)
+            return {"status": "ok", "data": {"match_id": mid, **detail},
+                    "meta": {**stamp, "limitations": [
+                        "时间为游戏秒，负数为赛前。分钟行是玩家个人快照，同身价并列，排名需要十人同分钟数据。",
+                        "购买是商店记录，不证明送达、使用次数或先手。缺少购买记录时无法确定出装前阶段。",
+                        "分钟行仅覆盖所选区间，排名口径为这场比赛同一分钟的十名参赛者。"]}}
         players = []
         for raw in raw_players[:10]:
             if not isinstance(raw, dict):
@@ -407,8 +428,11 @@ class DataService:
             player["account_id"] = number(raw.get("account_id"))
             player["personaname"] = text(raw.get("personaname"))
             player["items"] = [number(raw.get(f"item_{n}")) for n in range(6)]
-            player["purchase_log"] = [{"time": number(item.get("time")), "item_key": text(item.get("key"), 60)}
-                                      for item in (raw.get("purchase_log") or [])[:50] if isinstance(item, dict)]
+            events = raw.get("purchase_log")
+            player["purchase_event_count"] = len(events) if isinstance(events, list) else None
+            if stamp["source"] == "OpenDota":
+                player["purchase_log"] = [{"time": number(item.get("time")), "item_key": text(item.get("key"), 60)}
+                                          for item in (events or [])[:50] if isinstance(item, dict)]
             players.append(player)
         gold = row.get("radiant_gold_adv")
         xp = row.get("radiant_xp_adv")
@@ -423,8 +447,9 @@ class DataService:
                 "radiant_gold_advantage_by_minute": gold, "radiant_xp_advantage_by_minute": xp,
                 "source_url": f"https://{'stratz.com' if stamp['source'] == 'STRATZ' else 'www.opendota.com'}/matches/{mid}"},
                 "meta": {**stamp, "parsed": parsed, "available_sections": {"scoreboard": bool(players), "economy_curve": bool(gold), "xp_curve": bool(xp)},
-                         "limitations": ["只返回数据源已有字段；未解析时不能推断逐分钟过程，不会提交付费或耗额解析请求。",
-                                          "出装记录最多每人 50 项，曲线最多 180 分钟；缺失值不是零。",
+                         "limitations": ["查询某人的出装与发育请用 match 加 target 或 hero，可用 until_item 截止到首次买入该装备。团队优势曲线不能代表某位玩家的身价。",
+                                          "只返回数据源已有字段；未解析时不能推断逐分钟过程，不会提交付费或耗额解析请求。",
+                                          "总览中 OpenDota 的出装记录最多每人 50 项，STRATZ 显示记录数；个人复盘可读取购买明细。",
                                           "不能仅凭 KDA 判断责任或证明某次操作失误。"]}}
 
     async def _compare(self, params: dict, scope: str, user_id: str) -> dict:

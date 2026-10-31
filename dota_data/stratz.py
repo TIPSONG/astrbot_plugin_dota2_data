@@ -3,7 +3,7 @@
 Only fixed, named ``query`` operations are sent. There is no raw GraphQL input,
 mutation, parse submission, model call, message handler or persona operation.
 
-Field references (source review only; this implementation has not been run):
+Field references:
 * Official API entry point: https://stratz.com/api
 * Public generated schema models: TheAmazingLooser/STRATZ_Models,
   b83999ee652a2dd5d630ce593e9928dc85110696, PlayerMatchesRequestType,
@@ -12,8 +12,7 @@ Field references (source review only; this implementation has not been run):
   a9fafa6ec65d7d32b08c7eba4fffd1839bfa4d29/dota_stratz.py.
 
 This is independent adapter code. Schema names are API contracts, not a copy of
-the reference plugin's implementation. Schema compatibility still needs later
-runtime verification with an authorised token; no API probe is made on import.
+the reference plugin's implementation. Schema compatibility is covered by the live query checks; no API probe is made on import.
 """
 
 from __future__ import annotations
@@ -72,6 +71,10 @@ query DotaDataMatch($id: Long!) {
       PLAYER_FIELDS
       steamAccount { name }
       item0Id item1Id item2Id item3Id item4Id item5Id
+      stats {
+        itemPurchases { itemId time }
+        networthPerMinute lastHitsPerMinute
+      }
     }
   }
 }
@@ -191,6 +194,14 @@ def _player(player: dict, radiant_win: bool | None) -> dict:
     out["personaname"] = str(account.get("name") or "")[:100] if isinstance(account, dict) else None
     for index in range(6):
         out[f"item_{index}"] = _number(player.get(f"item{index}Id"))
+    stats = player.get("stats")
+    if isinstance(stats, dict):
+        events = stats.get("itemPurchases")
+        if isinstance(events, list):
+            out["purchase_log"] = [{"time": e.get("time"), "item_id": e.get("itemId")}
+                                   for e in events if isinstance(e, dict)]
+        out["networth_per_minute"] = _array(stats.get("networthPerMinute"))
+        out["last_hits_each_minute"] = _array(stats.get("lastHitsPerMinute"))
     return out
 
 
@@ -331,7 +342,8 @@ class Stratz:
             raise DataError("unsupported_filter", "STRATZ 查询参数必须为对象。")
         clean = {key: value for key, value in (params or {}).items() if value is not None}
         query, variables, kind, identifier, canonical = self._operation(path, clean)
-        cache_key = "stratz:v1:" + path + "|" + json.dumps(canonical, sort_keys=True, separators=(",", ":"))
+        prefix = "stratz:match-v2:" if kind == "match" else "stratz:v1:"
+        cache_key = prefix + path + "|" + json.dumps(canonical, sort_keys=True, separators=(",", ":"))
         url = f"https://stratz.com/{'matches' if kind == 'match' else 'players'}/{identifier}"
         async with self._lock:
             token = self.settings.get("stratz_api_key", "")

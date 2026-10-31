@@ -94,6 +94,7 @@ def normalized(value: str) -> str:
 
 # Narrow, explicit aliases. Unrecognised names return a clarification instead of a guess.
 HERO_ALIASES = {
+    "斯拉达": 28, "斯拉德": 28, "大鱼人": 28, "大鱼": 28, "slardar": 28,
     "敌法师": 1, "敌法": 1, "am": 1, "斧王": 2, "axe": 2,
     "血魔": 4, "水晶室女": 5, "冰女": 5, "cm": 5,
     "撼地者": 7, "小牛": 7, "剑圣": 8, "主宰": 8, "jugg": 8,

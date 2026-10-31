@@ -267,6 +267,53 @@ class ServiceTests(TempTest):
         self.assertEqual(result["data"]["stratz_game_version_id"], 999)
         self.assertTrue(result["meta"]["warnings"])
 
+    async def test_player_timeline_stops_at_first_purchase_and_uses_all_ten_peers(self):
+        match = stratz_match()
+        match["players"] = [
+            {"steamAccountId": 42+i, "heroId": 28+i, "stats": {
+                "networthPerMinute": [600, 800+i, 1000+i, 2000+i],
+                "lastHitsPerMinute": [2, 3, 8],
+                "itemPurchases": [{"itemId": 1, "time": 260}, {"itemId": 11, "time": -20},
+                                  {"itemId": 1, "time": 125}]}}
+            for i in range(10)]
+        self.service.update_settings({"data_source_priority": "stratz", "stratz_api_key": "unit"})
+        self.service.save_binding("g", "u", 42)
+        self.service.api.clients["opendota"].get = AsyncMock(side_effect=DataError("timeout", "offline"))
+        client = self.service.api.clients["stratz"]
+        client.get = AsyncMock(return_value=(Stratz._match({"match": match}, 123), STAMP))
+        params = {"match_id": "123", "target": "me", "hero": "大鱼人", "until_item": "跳刀"}
+        result = await self.service.query("match", params, "g", "u")
+        data = result["data"]
+        self.assertEqual((data["first_purchase_seconds"], data["cutoff_status"]), (125, "observed"))
+        self.assertEqual(data["last_snapshot"], {"minute": 2, "net_worth": 1000, "rank_of_10": 10, "last_hits": 5})
+        self.assertEqual(data["minutes"][0]["rank_of_10"], 1)  # All ten tied.
+        self.assertEqual([e["time"] for e in data["purchases"]], [-20, 125])
+        self.assertEqual(data["purchases"][-1]["item_name"], "闪烁匕首")
+        # A peer's gap removes only the rank; the selected player's snapshot survives.
+        match["players"][1]["stats"]["networthPerMinute"][2] = None
+        client.get.return_value = Stratz._match({"match": match}, 123), STAMP
+        data = (await self.service.query("match", params, "g", "u"))["data"]
+        self.assertIsNone(data["last_snapshot"]["rank_of_10"])
+        # No using a nickname or hero to bypass the requested binding.
+        missing = await self.service.query("match", params, "another-group", "u")
+        self.assertEqual(missing["code"], "binding_required")
+
+    async def test_open_dota_timeline_missing_and_observed_evidence(self):
+        row = {"match_id": 123, "duration": 250, "players": [{"account_id": 42, "hero_id": 28}]}
+        async def get(path, **kwargs):
+            return ([] if path == "/heroes" else row), STAMP
+        self.service.api.clients["opendota"].get = get
+        params = {"match_id": 123, "hero": "斯拉达", "until_item": "Blink Dagger"}
+        for events, state in [(None, "purchase_log_unavailable"), ([], "no_matching_record"),
+                              ([{"time": 180, "key": "boots"}], "no_matching_record"),
+                              ([{"time": 125, "key": "blink"}], "observed")]:
+            row["players"][0]["purchase_log"] = events
+            data = (await self.service.query("match", params, "g", "u"))["data"]
+            self.assertEqual(data["cutoff_status"], state)
+            self.assertEqual(data["first_purchase_seconds"], 125 if state == "observed" else None)
+            self.assertEqual(data["minutes"], [])
+            self.assertEqual([e["time"] for e in data["purchases"]], [125] if state == "observed" else [])
+
     async def test_shutdown_disables_future_queries(self):
         await self.service.close()
         result = await self.service.query("profile", {"target": "42"}, "g", "u")

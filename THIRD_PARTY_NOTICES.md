@@ -21,3 +21,5 @@ STRATZ 适配器字段还参考了公开生成的 [STRATZ_Models schema 快照](
 - [OpenDota 字段投影实现](https://github.com/odota/core/blob/8d774abda8542390fbd215487d961f1b5c3a3ef3/svc/api/spec.ts)：用于确认 `project` 参数替换默认列表字段的行为，补齐 GPM、XPM 和补刀；仅参考接口定义。
 
 本项目的 MIT 许可仅覆盖本项目代码与文档，不代表拥有 Dota 2 商标、游戏内容或外部数据的所有权，也不改变外部数据源的使用条件。本项目与 Valve、OpenDota、STRATZ 及所参考插件作者没有官方关联。
+
+物品 ID、内部代号和中英文显示名来自 [Valve Dota 2 物品数据](https://www.dota2.com/datafeed/itemlist?language=schinese)。本地名称表用于解释购买事件，未知或历史物品保留来源中的 ID 或代号。

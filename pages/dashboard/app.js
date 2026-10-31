@@ -72,8 +72,14 @@ function formatTime(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("zh-CN", { hour12: false });
 }
 
+Object.assign(fieldNames, {purchases: "装备购买记录", minutes: "个人发育时间线", minute: "分钟", net_worth: "身价", rank_of_10: "全场身价排名", purchase_log_available: "有购买记录字段", purchase_event_count: "购买记录数", until_item_id: "截止装备 ID", first_purchase_seconds: "首次购买时间", cutoff_status: "复盘范围", time: "游戏时间", item_name: "装备", item_key: "装备代号", item_id: "物品 ID", purchase_count: "范围内购买数", purchases_truncated: "购买列表已截断"});
 function display(value, key = "") {
   if (value == null) return "—";
+  if (["first_purchase_seconds", "time"].includes(key) && Number.isInteger(value)) {
+    const abs = Math.abs(value);
+    return `${value < 0 ? "-" : ""}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, "0")}`;
+  }
+  if (key === "cutoff_status") return {observed: "截至首次购买", whole_match: "整场", purchase_log_unavailable: "缺少购买记录", no_matching_record: "这份记录中未找到该装备"}[value] || value;
   if (key === "won" && typeof value === "boolean") return value ? "胜" : "负";
   if (["at", "created_at", "timestamp", "start_time", "fetched_at"].includes(key)) return formatTime(value);
   if (typeof value === "boolean") return value ? "是" : "否";
@@ -208,6 +214,9 @@ function collectQuery() {
   if (action === "match") {
     if (!/^\d+$/.test(value("match_id"))) throw new Error("请填写数字比赛 ID。");
     params.match_id = value("match_id");
+    if (value("match_target")) params.target = value("match_target");
+    if (value("hero")) params.hero = value("hero");
+    if (value("until_item")) params.until_item = value("until_item");
   }
   if (action === "compare") {
     params.targets = value("targets").split(/[\n,，]+/).map((s) => s.trim()).filter(Boolean);
